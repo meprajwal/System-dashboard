@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7fdfc;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+    }
+
+    .dashboard {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      flex-wrap: wrap;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+
+    .milk-container {
+      height: 200px;
+      width: 80px;
+      margin: 20px auto;
+      border: 2px solid #ccc;
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      background: #f0f0f0;
+    }
+
+    .milk-fill {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      background: linear-gradient(to top, #00bfff, #87cefa);
+      height: 0%;
+      transition: height 1s ease-in-out;
+    }
+
+    #temperature {
+      font-size: 2.5em;
+      color: #007bff;
+      margin: 10px 0;
+    }
+
+    .status {
+      margin-top: 20px;
+      color: green;
+      font-weight: bold;
+    }
+
+    /* Vinegar alert box */
+    #vinegar-alert {
+      display: none;
+      color: white;
+      background-color: red;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>System Dashboard</h1>
+
+  <div class="dashboard">
+    <div class="card">
+      <h2>Milk Level</h2>
+      <div class="milk-container">
+        <div class="milk-fill" id="milk-fill"></div>
+      </div>
+      <p id="milk-level-text">-- % Capacity</p>
+    </div>
+
+    <div class="card">
+      <h2>Current Temperature</h2>
+      <p id="temperature" class="temperature">-- °C</p>
+
+      <!-- Vinegar Alert -->
+      <div id="vinegar-alert">
+        ⚠️ Temperature High! Add Vinegar!
+      </div>
+
+      <h3>Temperature History</h3>
+      <canvas id="tempChart"></canvas>
+    </div>
+  </div>
+
+  <div id="status" class="status">Connecting...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const CHANNEL_ID = "2935295";
+    const READ_API_KEY = "5AWZYYAS070JMVP6";
+    const UPDATE_INTERVAL = 5000;
+
+    const milkFill = document.getElementById('milk-fill');
+    const milkLevelText = document.getElementById('milk-level-text');
+    const temperatureText = document.getElementById('temperature');
+    const statusText = document.getElementById('status');
+    const vinegarAlert = document.getElementById('vinegar-alert');
+
+    const ctx = document.getElementById('tempChart').getContext('2d');
+    const tempChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Temperature (°C)',
+          data: [],
+          backgroundColor: 'rgba(0, 123, 255, 0.2)',
+          borderColor: 'rgba(0, 123, 255, 1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            suggestedMin: 0,
+            suggestedMax: 100
+          }
+        }
+      }
+    });
+
+    function fetchData() {
+      fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=1`)
+        .then(response => response.json())
+        .then(data => {
+          const lastFeed = data.feeds[0];
+          if (!lastFeed) {
+            statusText.textContent = "No data yet...";
+            return;
+          }
+
+          const temperature = parseFloat(lastFeed.field1);
+          const distance = parseFloat(lastFeed.field2);
+
+          if (!isNaN(temperature)) {
+            updateTemperature(temperature);
+          }
+
+          if (!isNaN(distance)) {
+            updateMilkLevel(distance);
+          }
+
+          statusText.textContent = "Connected ✅";
+        })
+        .catch(error => {
+          console.error('Error fetching data:', error);
+          statusText.textContent = "Connection Error ❌";
+        });
+    }
+
+    function updateTemperature(temperature) {
+      temperatureText.textContent = `${temperature.toFixed(1)} °C`;
+
+      if (tempChart.data.labels.length > 20) {
+        tempChart.data.labels.shift();
+        tempChart.data.datasets[0].data.shift();
+      }
+
+      tempChart.data.labels.push(new Date().toLocaleTimeString());
+      tempChart.data.datasets[0].data.push(temperature);
+      tempChart.update();
+
+      // Show or hide vinegar alert
+      if (temperature > 40) {
+        vinegarAlert.style.display = 'block';
+      } else {
+        vinegarAlert.style.display = 'none';
+      }
+    }
+
+    function updateMilkLevel(distance) {
+      const tankHeight = 32;
+
+      if (distance >= 0 && distance <= tankHeight) {
+        let milkPercent = ((distance) / tankHeight) * 100;
+        milkPercent = Math.max(0, Math.min(100, milkPercent));
+
+        milkFill.style.height = `${milkPercent}%`;
+        milkLevelText.textContent = `${milkPercent.toFixed(1)}% Capacity`;
+        console.log('Distance:', distance, 'Milk Percent:', ((tankHeight - distance) / tankHeight) * 100);
+
+      } else {
+        milkFill.style.height = '0%';
+        milkLevelText.textContent = 'Error: Invalid Distance';
+      }
+    }
+
+    setInterval(fetchData, UPDATE_INTERVAL);
+    fetchData();
+  </script>
+
+</body>
+</html>
