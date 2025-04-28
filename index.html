@@ -64,7 +64,6 @@
       font-weight: bold;
     }
 
-    /* Vinegar alert box */
     #vinegar-alert {
       display: none;
       color: white;
@@ -79,8 +78,11 @@
 <body>
 
   <h1>System Dashboard</h1>
-
+  <div id="vinegar-alert" style="max-width: 500px; margin: 0 auto 20px auto; display: none;">
+    ⚠️ Temperature Reached, now add Vinegar
+  </div>
   <div class="dashboard">
+
     <div class="card">
       <h2>Milk Level</h2>
       <div class="milk-container">
@@ -93,10 +95,7 @@
       <h2>Current Temperature</h2>
       <p id="temperature" class="temperature">-- °C</p>
 
-      <!-- Vinegar Alert -->
-      <div id="vinegar-alert">
-        ⚠️ Temperature High! Add Vinegar!
-      </div>
+
 
       <h3>Temperature History</h3>
       <canvas id="tempChart"></canvas>
@@ -109,7 +108,7 @@
   <script>
     const CHANNEL_ID = "2935295";
     const READ_API_KEY = "5AWZYYAS070JMVP6";
-    const UPDATE_INTERVAL = 5000;
+    const UPDATE_INTERVAL = 15000;
 
     const milkFill = document.getElementById('milk-fill');
     const milkLevelText = document.getElementById('milk-level-text');
@@ -164,11 +163,11 @@
             updateMilkLevel(distance);
           }
 
-          statusText.textContent = "Connected ✅";
+          statusText.textContent = "Connected";
         })
         .catch(error => {
           console.error('Error fetching data:', error);
-          statusText.textContent = "Connection Error ❌";
+          statusText.textContent = "Connection Error";
         });
     }
 
@@ -184,9 +183,9 @@
       tempChart.data.datasets[0].data.push(temperature);
       tempChart.update();
 
-      // Show or hide vinegar alert
-      if (temperature > 40) {
+      if (temperature >80) {
         vinegarAlert.style.display = 'block';
+        console.log("Add Vinegar!");
       } else {
         vinegarAlert.style.display = 'none';
       }
